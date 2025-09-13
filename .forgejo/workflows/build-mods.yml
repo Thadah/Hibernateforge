@@ -1,0 +1,61 @@
+name: Build NeoForge and Fabric Mods
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build all projects
+        run: ./gradlew build
+
+      - name: Extract version from gradle.properties
+        id: version
+        run: echo "VERSION=$(grep '^version=' gradle.properties | cut -d'=' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Upload NeoForge artifact
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: hibernateforge-neoforge-v${{ steps.version.outputs.VERSION }}
+          path: neoforge/build/libs/*.jar
+
+      - name: Upload Fabric artifact
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: hibernateforge-fabric-v${{ steps.version.outputs.VERSION }}
+          path: fabric/build/libs/*.jar
+
+      - name: Upload Common artifact
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: hibernateforge-common-v${{ steps.version.outputs.VERSION }}
+          path: common/build/libs/*.jar
